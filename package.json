@@ -4,7 +4,10 @@
   "description": "A public-facing, OGame-inspired strategy dashboard that looks like a lightweight browser game while presenting generalized planning guidance.",
   "main": "game.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No automated tests yet (placeholder).\"",
+    "lint": "node --check game.js && node --check web_game_playwright_client.mjs",
+    "docs:check": "test -f README.md && test -f docs/branch-protection.md",
+    "build": "echo \"No build step yet (static app placeholder).\""
   },
   "repository": {
     "type": "git",
