@@ -27,3 +27,5 @@ Original prompt: OGame-style game-like panel for a general open repo.
 
 - Updated Strategy Track to generalized KPI-focused tracks (Growth, Product, Ops, Revenue) and expanded panel to display KPIs.
 - Playwright run captured updated KPI panel (shot-0.png, state-0.json).
+
+- Created HANDOFF.md with deployment/test instructions for next machine.
