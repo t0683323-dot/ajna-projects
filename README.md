@@ -1,5 +1,8 @@
 # Ajna Command Grid
 
+[![CI](https://github.com/t0683323-dot/ajna-projects/actions/workflows/ci.yml/badge.svg)](https://github.com/t0683323-dot/ajna-projects/actions/workflows/ci.yml)
+
+
 A public-facing, OGame-inspired strategy dashboard that looks like a lightweight browser game while presenting generalized planning guidance.
 
 ## Controls
