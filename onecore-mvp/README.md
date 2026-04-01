@@ -16,6 +16,20 @@ php -S localhost:8088 -t public
 
 Open `http://localhost:8088`.
 
+### Windows recommended run (auto PHP detection)
+
+From repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-onecore-mvp.ps1
+```
+
+This script tries `php` from PATH first, then WinGet PHP locations.
+
+### VS Code task
+
+Run task: `OneCore MVP: Start Server`
+
 ## What to test
 
 1. Register one device (or two browser tabs with different device IDs).

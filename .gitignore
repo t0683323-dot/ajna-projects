@@ -11,6 +11,12 @@ Thumbs.db
 
 # Preview/runtime artifacts
 *.log
+*.pid
+
+# Environment files
+.env
+.env.*
+!.env.example
 
 # OneCore MVP runtime state
 onecore-mvp/storage/*.json
