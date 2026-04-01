@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OneCore MVP</title>
+  <style>
+    :root {
+      --bg: #0c1225;
+      --panel: #121b38;
+      --line: #2b3b72;
+      --text: #eff5ff;
+      --muted: #9aabdc;
+      --accent: #41d8b8;
+      --warn: #ffc96a;
+      --mono: Consolas, 'Liberation Mono', monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Segoe UI, sans-serif; background: linear-gradient(160deg, #0c1225 0%, #18264b 100%); color: var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+    h1 { margin: 0.3rem 0 1rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+    .card { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 0.9rem; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0a1021; color: var(--text); padding: 0.55rem; margin-bottom: 0.7rem; }
+    button { border: 1px solid var(--accent); background: var(--accent); color: #072117; padding: 0.55rem 0.8rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--text); border-color: var(--line); }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .mono { font-family: var(--mono); font-size: 0.8rem; }
+    pre { background: #080d1d; border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem; overflow: auto; max-height: 240px; }
+    .pill { display: inline-block; border-radius: 999px; padding: 0.12rem 0.5rem; font-size: 0.75rem; }
+    .ok { background: rgba(65, 216, 184, 0.2); color: var(--accent); }
+    .off { background: rgba(255, 201, 106, 0.2); color: var(--warn); }
+    @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>OneCore MVP</h1>
+    <p>Register device, keep heartbeat alive, share task state, and handoff between devices.</p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Device</h2>
+        <label>Device ID</label>
+        <input id="deviceId" value="laptop-01" />
+        <label>Display Name</label>
+        <input id="displayName" value="Laptop Workspace" />
+        <label>Capabilities (comma separated)</label>
+        <input id="capabilities" value="editor,browser,sync" />
+        <div class="row">
+          <button id="registerBtn">Register + Heartbeat</button>
+          <button id="autoBeatBtn" class="secondary">Start Auto Heartbeat</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Task Handoff</h2>
+        <label>Task ID</label>
+        <input id="taskId" value="task-1001" />
+        <label>From Device</label>
+        <input id="fromDevice" value="laptop-01" />
+        <label>To Device</label>
+        <input id="toDevice" value="phone-01" />
+        <button id="handoffBtn">Execute Handoff</button>
+      </section>
+
+      <section class="card">
+        <h2>Current Devices</h2>
+        <div id="devicesView" class="mono"></div>
+      </section>
+
+      <section class="card">
+        <h2>Shared State (tasks)</h2>
+        <pre id="stateView" class="mono"></pre>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:1rem;">
+      <h2>Event Log (tail)</h2>
+      <pre id="eventsView" class="mono"></pre>
+    </section>
+  </div>
+
+  <script>
+    const api = {
+      devices: 'api/devices.php',
+      save: 'api/save.php',
+      handoff: 'api/handoff.php',
+      log: 'api/log.php',
+    };
+
+    let beatTimer = null;
+
+    async function request(url, method = 'GET', body) {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'request failed');
+      return json;
+    }
+
+    async function registerDevice() {
+      const deviceId = document.getElementById('deviceId').value.trim();
+      const displayName = document.getElementById('displayName').value.trim();
+      const capabilities = document.getElementById('capabilities').value.split(',').map(v => v.trim()).filter(Boolean);
+
+      await request(api.devices, 'POST', { deviceId, displayName, capabilities });
+      await request(api.log, 'POST', { event: 'device_register', deviceId, payload: { capabilities } });
+      await refresh();
+    }
+
+    async function handoffTask() {
+      const taskId = document.getElementById('taskId').value.trim();
+      const fromDevice = document.getElementById('fromDevice').value.trim();
+      const toDevice = document.getElementById('toDevice').value.trim();
+      await request(api.handoff, 'POST', { taskId, fromDevice, toDevice });
+      await refresh();
+    }
+
+    async function readSharedTasks() {
+      try {
+        return await request(api.save + '?key=tasks');
+      } catch {
+        return {};
+      }
+    }
+
+    async function renderDevices() {
+      const data = await request(api.devices);
+      const rows = Object.values(data).map(device => {
+        const statusClass = device.online ? 'ok' : 'off';
+        const statusText = device.online ? 'online' : 'offline';
+        return `<div><strong>${device.displayName}</strong> (${device.deviceId}) <span class="pill ${statusClass}">${statusText}</span><br><span>${(device.capabilities || []).join(', ')}</span></div>`;
+      });
+      document.getElementById('devicesView').innerHTML = rows.join('<hr style="border-color:#2b3b72;">') || 'No devices yet';
+    }
+
+    async function renderTasks() {
+      const tasks = await readSharedTasks();
+      document.getElementById('stateView').textContent = JSON.stringify(tasks, null, 2);
+    }
+
+    async function renderEvents() {
+      const resp = await fetch('api/events-tail.php');
+      const txt = await resp.text();
+      document.getElementById('eventsView').textContent = txt;
+    }
+
+    async function refresh() {
+      await Promise.all([renderDevices(), renderTasks(), renderEvents()]);
+    }
+
+    document.getElementById('registerBtn').addEventListener('click', registerDevice);
+    document.getElementById('handoffBtn').addEventListener('click', handoffTask);
+
+    document.getElementById('autoBeatBtn').addEventListener('click', async () => {
+      if (beatTimer) {
+        clearInterval(beatTimer);
+        beatTimer = null;
+        document.getElementById('autoBeatBtn').textContent = 'Start Auto Heartbeat';
+        return;
+      }
+      await registerDevice();
+      beatTimer = setInterval(registerDevice, 12000);
+      document.getElementById('autoBeatBtn').textContent = 'Stop Auto Heartbeat';
+    });
+
+    refresh();
+    setInterval(refresh, 10000);
+  </script>
+</body>
+</html>

@@ -2,6 +2,15 @@
 
 OneCore is a product direction for making many devices behave like one coordinated system instead of a set of isolated endpoints.
 
+This direction should not be built from scratch. Earlier aisite work already established the right primitives:
+
+- a central orchestrator
+- a capability registry for dynamic routing
+- a shared key/value state API
+- an append-only event/log stream
+
+The practical goal now is to adapt those primitives from multi-AI orchestration into multi-device orchestration.
+
 ## Core idea
 
 Every device keeps its own local runtime, but all devices share the same:
@@ -13,6 +22,34 @@ Every device keeps its own local runtime, but all devices share the same:
 - event stream
 
 The result is a mesh where a phone, laptop, desktop, kiosk, or embedded device can pick up work from the same shared core.
+
+## Existing foundations to reuse
+
+### 1. Orchestrator pattern
+
+The previous architecture already used a hierarchical orchestrator that accepted work, selected the right specialist, and delegated execution. For OneCore, keep the same pattern, but treat devices as execution targets in addition to agents.
+
+### 2. Capability registry
+
+The previous solution already identified capability-based routing as the key scaling mechanism. Reuse that directly for devices. Each device should advertise its available capabilities and runtime state so routing is driven by what the device can do, not by hardcoded device roles.
+
+### 3. Shared state API
+
+There is already a simple key/value persistence model that can act as the first shared state layer. It is enough for:
+
+- current session state
+- active task ownership
+- selected device
+- cross-device handoff metadata
+
+### 4. Event log
+
+There is already an append-style logging mechanism. That should become the basis for:
+
+- audit trail
+- device heartbeat history
+- task lifecycle history
+- sync and reconciliation diagnostics
 
 ## Design goals
 
@@ -105,15 +142,16 @@ The smallest credible OneCore-style implementation should include:
 
 ## Suggested next build sequence
 
-1. Define shared entities: user, workspace, device, capability, session, task, event
-2. Build device registration and heartbeat API
-3. Add a shared task timeline UI
-4. Add handoff actions between devices
-5. Add policy rules for routing tasks to the right device
+1. Reuse the existing orchestrator model as the OneCore control plane
+2. Extend the shared key/value model with device, session, task, and handoff records
+3. Use the logging pipeline as an event stream for audit and presence history
+4. Build device registration and heartbeat API
+5. Add a shared task timeline and cross-device handoff UI
+6. Add policy rules that route work based on capability and presence
 
 ## What this means for this repository
 
-For `ajna-projects`, the next practical step is to evolve the current static site into a product landing page that explains OneCore as a platform:
+For `ajna-projects`, the next practical step is to evolve the current static site into a product landing page that explains OneCore as a platform built on already-proven aisite patterns:
 
 - one account
 - one control plane
@@ -123,6 +161,6 @@ For `ajna-projects`, the next practical step is to evolve the current static sit
 After that, the next code step should be a small web prototype with:
 
 - device registration
-- shared session state
-- live presence indicators
-- cross-device task handoff
+- shared session state backed by the existing key/value pattern
+- live presence indicators derived from heartbeat events
+- cross-device task handoff managed by the orchestrator

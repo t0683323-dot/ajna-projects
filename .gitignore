@@ -11,3 +11,8 @@ Thumbs.db
 
 # Preview/runtime artifacts
 *.log
+
+# OneCore MVP runtime state
+onecore-mvp/storage/*.json
+onecore-mvp/storage/*.jsonl
+!onecore-mvp/storage/.gitkeep
