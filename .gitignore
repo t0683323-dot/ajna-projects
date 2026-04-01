@@ -1,0 +1,13 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Language server and lint caches
+.clj-kondo/
+.lsp/
+
+# Local editor state
+.qodo/
+
+# Preview/runtime artifacts
+*.log

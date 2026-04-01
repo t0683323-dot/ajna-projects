@@ -81,3 +81,37 @@ flowchart LR
     E[Admin Console] --> W
     E --> P[Policy, RBAC, Audit Logs]
 ```
+
+## WSL Ubuntu workflow
+
+This repository includes a minimal WSL Ubuntu setup for local editing and preview on Windows.
+
+### Open the repository in Ubuntu from VS Code
+
+Run the VS Code task `WSL: Open Repo In Ubuntu`.
+
+Or use PowerShell directly from the repo root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\open-in-wsl-ubuntu.ps1
+```
+
+That reopens the current repository through the `Ubuntu` WSL distro so terminals, Git, and tooling run in Linux.
+
+### Serve the static portfolio from Ubuntu
+
+Run the VS Code task `WSL: Serve Portfolio`.
+
+Or use PowerShell directly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\serve-portfolio-wsl.ps1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:4173
+```
+
+The server runs `python3 -m http.server 4173` inside the `Ubuntu` distro from the `portfolio/` directory.

@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "WSL: Open Repo In Ubuntu",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\open-in-wsl-ubuntu.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "WSL: Serve Portfolio",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\serve-portfolio-wsl.ps1"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}
