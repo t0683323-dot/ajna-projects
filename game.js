@@ -27,6 +27,8 @@
     lastAdvice: [],
     layout: {},
     stars: [],
+    pullCooldown: 0,
+    pullMaxCooldown: 10,
   };
 
   const buildingDefs = [
@@ -76,6 +78,10 @@
     title: "Ajna Command Grid",
     subtitle: "Strategic Console // Public Edition",
   };
+
+  const PUSH_COST_METAL_PER_SEC = 20;
+  const PUSH_COST_CRYSTAL_PER_SEC = 10;
+  const PUSH_MIN_REMAINING = 0.1;
 
   const strategyTracks = [
     {
@@ -226,6 +232,9 @@
     if (state.mode !== "game") return;
     updateResources(dt);
     updateBuildQueue(dt);
+    if (state.pullCooldown > 0) {
+      state.pullCooldown = Math.max(0, state.pullCooldown - dt);
+    }
   }
 
   function getRecommendations() {
@@ -437,16 +446,62 @@
     ctx.font = "600 13px 'IBM Plex Sans'";
     ctx.fillText("Upgrade (Enter)", upgradeButton.x + 16, upgradeButton.y + 21);
 
+    // Pull Resources button
+    const pullButton = {
+      x: queuePanel.x,
+      y: queuePanel.y + queuePanel.h + 10,
+      w: queuePanel.w,
+      h: 34,
+    };
+    const canPull = state.pullCooldown <= 0;
+    ctx.fillStyle = canPull ? "rgba(155,255,201,0.2)" : "rgba(255,255,255,0.06)";
+    ctx.fillRect(pullButton.x, pullButton.y, pullButton.w, pullButton.h);
+    ctx.strokeStyle = canPull ? "#9bffc9" : "#2a3b53";
+    ctx.strokeRect(pullButton.x, pullButton.y, pullButton.w, pullButton.h);
+    ctx.fillStyle = canPull ? "#9bffc9" : "#7d8da3";
+    ctx.font = "600 13px 'IBM Plex Sans'";
+    if (canPull) {
+      ctx.fillText("Pull Resources (R)", pullButton.x + 12, pullButton.y + 21);
+    } else {
+      ctx.fillText(`Pull cooldown: ${state.pullCooldown.toFixed(1)}s`, pullButton.x + 12, pullButton.y + 21);
+    }
+
+    // Push Build button
+    const pushButton = {
+      x: queuePanel.x,
+      y: pullButton.y + pullButton.h + 8,
+      w: queuePanel.w,
+      h: 34,
+    };
+    const boost = state.buildQueue ? state.buildQueue.remaining * 0.5 : 0;
+    const pushCost = state.buildQueue
+      ? { metal: Math.ceil(boost * PUSH_COST_METAL_PER_SEC), crystal: Math.ceil(boost * PUSH_COST_CRYSTAL_PER_SEC) }
+      : null;
+    const canPush = !!state.buildQueue && canAfford({ ...pushCost, deuterium: 0 });
+    ctx.fillStyle = canPush ? "rgba(255,209,102,0.2)" : "rgba(255,255,255,0.06)";
+    ctx.fillRect(pushButton.x, pushButton.y, pushButton.w, pushButton.h);
+    ctx.strokeStyle = canPush ? "#ffd166" : "#2a3b53";
+    ctx.strokeRect(pushButton.x, pushButton.y, pushButton.w, pushButton.h);
+    ctx.fillStyle = canPush ? "#ffd166" : "#7d8da3";
+    ctx.font = "600 13px 'IBM Plex Sans'";
+    if (state.buildQueue && pushCost) {
+      ctx.fillText(`Push Build (G)  M${pushCost.metal}/C${pushCost.crystal}`, pushButton.x + 12, pushButton.y + 21);
+    } else {
+      ctx.fillText("Push Build (G)  no queue", pushButton.x + 12, pushButton.y + 21);
+    }
+
     ctx.fillStyle = "#b7c4d4";
     ctx.font = "11px 'IBM Plex Sans'";
     ctx.fillText("Up/Down select, Enter build, I advisor, P pause, F fullscreen", 310, 512);
-    ctx.fillText("T: cycle strategy track", 310, 528);
+    ctx.fillText("T: strategy track  R: pull resources  G: push build", 310, 528);
 
     state.layout = {
       buildPanel,
       listStartY,
       rowHeight,
       upgradeButton,
+      pullButton,
+      pushButton,
       advisorPanel,
       strategyPanel,
     };
@@ -465,14 +520,15 @@
     ctx.fillText("A cover interface that behaves like a strategy game.", 210, 235);
     ctx.fillText("Press Enter to begin simulation.", 310, 270);
 
-    drawPanel(260, 310, 440, 140, "Controls");
+    drawPanel(260, 310, 440, 160, "Controls");
     ctx.fillStyle = "#e8edf2";
     ctx.font = "13px 'IBM Plex Sans'";
     ctx.fillText("Up/Down: select structure", 290, 350);
     ctx.fillText("Enter: upgrade selection", 290, 372);
     ctx.fillText("I: toggle advisor guidance", 290, 394);
     ctx.fillText("P: pause / resume", 290, 416);
-    ctx.fillText("F: fullscreen toggle", 290, 438);
+    ctx.fillText("R: pull resources (burst)  G: push build (speed up)", 290, 438);
+    ctx.fillText("F: fullscreen toggle", 290, 460);
   }
 
   function renderPause() {
@@ -506,6 +562,29 @@
     };
   }
 
+  function pullResources() {
+    if (state.pullCooldown > 0) return;
+    const perSec = productionPerSecond();
+    const burst = state.pullMaxCooldown;
+    state.resources.metal += perSec.metal * burst;
+    state.resources.crystal += perSec.crystal * burst;
+    state.resources.deuterium += perSec.deuterium * burst;
+    state.pullCooldown = state.pullMaxCooldown;
+  }
+
+  function pushBuild() {
+    if (!state.buildQueue) return;
+    const boost = state.buildQueue.remaining * 0.5;
+    const boostCost = {
+      metal: Math.ceil(boost * PUSH_COST_METAL_PER_SEC),
+      crystal: Math.ceil(boost * PUSH_COST_CRYSTAL_PER_SEC),
+      deuterium: 0,
+    };
+    if (!canAfford(boostCost)) return;
+    spend(boostCost);
+    state.buildQueue.remaining = Math.max(PUSH_MIN_REMAINING, state.buildQueue.remaining - boost);
+  }
+
   function handleClick(x, y) {
     if (state.mode === "menu") {
       state.mode = "game";
@@ -513,7 +592,7 @@
     }
     if (state.mode !== "game") return;
 
-    const { buildPanel, listStartY, rowHeight, upgradeButton } = state.layout;
+    const { buildPanel, listStartY, rowHeight, upgradeButton, pullButton, pushButton } = state.layout;
     if (
       x >= buildPanel.x + 12 &&
       x <= buildPanel.x + buildPanel.w - 12 &&
@@ -531,6 +610,26 @@
       y <= upgradeButton.y + upgradeButton.h
     ) {
       startUpgrade();
+    }
+
+    if (
+      pullButton &&
+      x >= pullButton.x &&
+      x <= pullButton.x + pullButton.w &&
+      y >= pullButton.y &&
+      y <= pullButton.y + pullButton.h
+    ) {
+      pullResources();
+    }
+
+    if (
+      pushButton &&
+      x >= pushButton.x &&
+      x <= pushButton.x + pushButton.w &&
+      y >= pushButton.y &&
+      y <= pushButton.y + pushButton.h
+    ) {
+      pushBuild();
     }
   }
 
@@ -563,6 +662,10 @@
       state.showAdvisor = !state.showAdvisor;
     } else if (key === "t") {
       state.focusIndex = (state.focusIndex + 1) % strategyTracks.length;
+    } else if (key === "r") {
+      pullResources();
+    } else if (key === "g") {
+      pushBuild();
     } else if (key === "p" || key === "escape") {
       state.mode = "pause";
     }
@@ -634,6 +737,8 @@
         selected: idx === state.selectedIndex,
       })),
       queue,
+      pullCooldown: Number(state.pullCooldown.toFixed(2)),
+      pullReady: state.pullCooldown <= 0,
       advisorVisible: state.showAdvisor,
       advisor: state.lastAdvice,
       strategy: {

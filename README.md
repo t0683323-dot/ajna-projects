@@ -10,6 +10,8 @@ A public-facing, OGame-inspired strategy dashboard that looks like a lightweight
 - `Up/Down` select structure
 - `Enter` upgrade selected
 - `I` toggle advisor guidance
+- `R` pull resources (collect a 10-second production burst; 10 s cooldown)
+- `G` push build (spend resources to halve the current build queue timer)
 - `P` pause/resume
 - `F` fullscreen toggle
 
